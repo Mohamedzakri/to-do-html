@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartRank To-Do V3 (Deadline Edition)</title>
+    <style>
+        :root {
+            --primary: #0984e3;
+            --secondary: #74b9ff;
+            --bg: #dfe6e9;
+            --text: #2d3436;
+            --card-bg: #ffffff;
+            --danger: #d63031;
+            --warning: #e17055;
+            --success: #00b894;
+            --gray: #b2bec3;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            padding: 40px 20px;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 650px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text);
+            margin-bottom: 25px;
+            font-weight: 800;
+        }
+
+        .highlight { color: var(--primary); }
+
+        /* Input Section */
+        .input-group {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .row {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        label {
+            display: block;
+            font-size: 11px;
+            color: #636e72;
+            margin-bottom: 4px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        input {
+            padding: 12px;
+            border: 2px solid #ecf0f1;
+            border-radius: 8px;
+            font-size: 15px;
+            width: 100%;
+            transition: 0.2s;
+            background: #fafafa;
+        }
+
+        input:focus {
+            border-color: var(--secondary);
+            background: white;
+            outline: none;
+        }
+
+        /* Specific style for Date input to make it look clickable */
+        input[type="date"] {
+            color: #636e72;
+            font-family: inherit;
+        }
+
+        button.primary-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            margin-top: 5px;
+        }
+
+        button.primary-btn:hover {
+            background-color: #0c2461;
+            transform: translateY(-1px);
+        }
+
+        /* List Styles */
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .task-card {
+            background: var(--card-bg);
+            margin-bottom: 15px;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            border-left: 6px solid transparent;
+            position: relative;
+            transition: transform 0.2s ease;
+        }
+
+        /* Dynamic Borders */
+        /* If overdue or today: Red. If soon: Orange. If safe: Green/Blue */
+        .task-card[data-deadline-status="urgent"] { border-left-color: var(--danger); }
+        .task-card[data-deadline-status="soon"] { border-left-color: var(--warning); }
+        .task-card[data-deadline-status="safe"] { border-left-color: var(--success); }
+        .task-card[data-deadline-status="none"] { border-left-color: var(--gray); }
+
+        .task-card.completed {
+            opacity: 0.5;
+            background-color: #f1f2f6;
+            border-left-color: #b2bec3;
+        }
+        
+        .task-card.completed .task-title {
+            text-decoration: line-through;
+            color: #b2bec3;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+        }
+
+        .checkbox-wrapper { padding-top: 4px; }
+        .checkbox-wrapper input { width: 20px; height: 20px; cursor: pointer; }
+
+        .task-content { flex-grow: 1; }
+
+        .task-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 10px;
+            font-size: 13px;
+            color: #636e72;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .pill {
+            background: #f1f2f6;
+            padding: 4px 8px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: 500;
+        }
+        
+        .pill.date-pill {
+            background-color: #dfe6e9;
+            color: #2d3436;
+        }
+
+        /* Highlight Overdue Dates */
+        .pill.date-overdue { background-color: #ff7675; color: white; }
+
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            margin-left: 10px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: #b2bec3;
+            transition: 0.2s;
+        }
+
+        .icon-btn:hover { background-color: #f1f2f6; color: var(--primary); }
+        .delete-btn:hover { color: var(--danger); }
+
+        /* Edit Form inside Card */
+        .edit-form { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+        .edit-buttons { display: flex; gap: 10px; margin-top: 5px; }
+        .save-btn { background-color: var(--success); color: white; flex: 2; padding: 8px; border-radius: 6px; border:none; cursor:pointer;}
+        .cancel-btn { background-color: #b2bec3; color: white; flex: 1; padding: 8px; border-radius: 6px; border:none; cursor:pointer;}
+
+        .empty-state {
+            text-align: center;
+            color: #b2bec3;
+            margin-top: 60px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🗓️ Deadline <span class="highlight">Ranker</span></h1>
+
+    <div class="input-group">
+        <div>
+            <label>Task Name</label>
+            <input type="text" id="taskInput" placeholder="e.g. Wash the car" autocomplete="off">
+        </div>
+        
+        <div class="row">
+            <div style="flex: 2;">
+                <label>Deadline (Optional)</label>
+                <input type="date" id="deadlineInput">
+            </div>
+            <div style="flex: 1;">
+                <label>Urgency (1-10)</label>
+                <input type="number" id="urgencyInput" min="1" max="10" value="5">
+            </div>
+            <div style="flex: 1;">
+                <label>Time (min)</label>
+                <input type="number" id="timeInput" min="1" value="30">
+            </div>
+        </div>
+
+        <button id="add-btn" class="primary-btn">Add Task</button>
+    </div>
+
+    <ul id="taskList"></ul>
+    
+    <div id="emptyState" class="empty-state">
+        <p>No tasks yet.</p>
+    </div>
+</div>
+
+<script>
+    // --- State ---
+    let tasks = [];
+    let editingId = null;
+
+    // --- Selectors ---
+    const taskInput = document.getElementById('taskInput');
+    const deadlineInput = document.getElementById('deadlineInput');
+    const urgencyInput = document.getElementById('urgencyInput');
+    const timeInput = document.getElementById('timeInput');
+    const addBtn = document.getElementById('add-btn');
+    const taskList = document.getElementById('taskList');
+    const emptyState = document.getElementById('emptyState');
+
+    // --- Init ---
+    document.addEventListener('DOMContentLoaded', () => {
+        loadTasks();
+        renderTasks();
+    });
+
+    addBtn.addEventListener('click', addTask);
+    taskInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') addTask(); });
+
+    // --- Logic ---
+
+    function calculateScore(urgency, time) {
+        if(time <= 0) time = 1; 
+        return (urgency / time) * 100;
+    }
+
+    function addTask() {
+        const text = taskInput.value.trim();
+        const urgency = parseFloat(urgencyInput.value);
+        const time = parseFloat(timeInput.value);
+        const deadline = deadlineInput.value; // Returns 'YYYY-MM-DD' or empty string
+
+        if (!validateInput(text, urgency, time)) return;
+
+        const newTask = {
+            id: Date.now(),
+            text: text,
+            urgency: urgency,
+            time: time,
+            deadline: deadline === "" ? null : deadline, // Normalize empty string to null
+            score: calculateScore(urgency, time),
+            completed: false
+        };
+
+        tasks.push(newTask);
+        saveAndRender();
+        clearInputs();
+    }
+
+    function validateInput(text, urgency, time) {
+        if (text === '') { alert('Task name required'); return false; }
+        if (isNaN(urgency) || urgency < 1 || urgency > 10) { alert('Urgency must be 1-10'); return false; }
+        if (isNaN(time) || time <= 0) { alert('Time must be positive'); return false; }
+        return true;
+    }
+
+    // --- The Ranking Algorithm ---
+    function sortTasks(taskList) {
+        return taskList.sort((a, b) => {
+            // 1. Completed tasks always go to the bottom
+            if (a.completed !== b.completed) return a.completed - b.completed;
+
+            // 2. Deadline Logic
+            // If both have deadlines
+            if (a.deadline && b.deadline) {
+                // If deadlines are different, earlier date wins
+                if (a.deadline !== b.deadline) {
+                    return a.deadline.localeCompare(b.deadline);
+                }
+                // If deadlines are same date, fall through to Score check below
+            }
+            // If A has deadline and B does not -> A wins
+            else if (a.deadline && !b.deadline) {
+                return -1; 
+            }
+            // If B has deadline and A does not -> B wins
+            else if (!a.deadline && b.deadline) {
+                return 1;
+            }
+
+            // 3. Fallback: Efficiency Score (Higher score wins)
+            return b.score - a.score;
+        });
+    }
+
+    // --- Rendering ---
+    function renderTasks() {
+        taskList.innerHTML = '';
+        
+        if (tasks.length === 0) {
+            emptyState.style.display = 'block';
+            return;
+        }
+        emptyState.style.display = 'none';
+
+        const sortedTasks = sortTasks([...tasks]);
+
+        sortedTasks.forEach(task => {
+            const li = document.createElement('li');
+            
+            if (editingId === task.id) {
+                renderEditMode(li, task);
+            } else {
+                renderViewMode(li, task);
+            }
+            taskList.appendChild(li);
+        });
+    }
+
+    function renderViewMode(element, task) {
+        const completedClass = task.completed ? 'completed' : '';
+        
+        // Determine border color logic
+        let status = 'none';
+        let dateDisplay = 'No Deadline';
+        let dateClass = '';
+
+        if (task.deadline) {
+            const today = new Date().toISOString().split('T')[0];
+            dateDisplay = new Date(task.deadline).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            
+            if (task.deadline < today) {
+                status = 'urgent'; // Overdue
+                dateClass = 'date-overdue';
+                dateDisplay += ' (Overdue)';
+            } else if (task.deadline === today) {
+                status = 'urgent';
+                dateClass = 'date-overdue';
+                dateDisplay = 'Today';
+            } else {
+                status = 'safe'; // In future
+            }
+        } else {
+            // No deadline, use score for color or default
+            if(task.score > 20) status = 'soon';
+        }
+
+        element.innerHTML = `
+            <div class="task-card ${completedClass}" data-deadline-status="${status}">
+                <div class="card-header">
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" 
+                            ${task.completed ? 'checked' : ''} 
+                            onchange="toggleComplete(${task.id})">
+                    </div>
+                    <div class="task-content">
+                        <div class="task-title">
+                            <span>${escapeHtml(task.text)}</span>
+                        </div>
+                        <div class="task-meta">
+                            ${task.deadline ? `<span class="pill date-pill ${dateClass}">📅 ${dateDisplay}</span>` : ''}
+                            <span class="pill">🔥 ${task.urgency}</span>
+                            <span class="pill">⏱️ ${task.time}m</span>
+                            <span class="pill" style="background:transparent; opacity:0.6;">Score: ${task.score.toFixed(0)}</span>
+                        </div>
+                    </div>
+                    <div class="task-actions">
+                        <button class="icon-btn" onclick="enableEdit(${task.id})">✎</button>
+                        <button class="icon-btn delete-btn" onclick="deleteTask(${task.id})">🗑</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderEditMode(element, task) {
+        element.innerHTML = `
+            <div class="task-card" style="border-left-color: var(--primary);">
+                <div class="edit-form">
+                    <label>Edit Task Name</label>
+                    <input type="text" id="edit-text-${task.id}" value="${escapeHtml(task.text)}">
+                    
+                    <div class="row">
+                        <div style="flex:2">
+                            <label>Deadline</label>
+                            <input type="date" id="edit-date-${task.id}" value="${task.deadline || ''}">
+                        </div>
+                        <div style="flex:1">
+                            <label>Urg.</label>
+                            <input type="number" id="edit-urg-${task.id}" value="${task.urgency}" min="1" max="10">
+                        </div>
+                        <div style="flex:1">
+                            <label>Time</label>
+                            <input type="number" id="edit-time-${task.id}" value="${task.time}" min="1">
+                        </div>
+                    </div>
+                    
+                    <div class="edit-buttons">
+                        <button class="save-btn" onclick="saveEdit(${task.id})">Save</button>
+                        <button class="cancel-btn" onclick="cancelEdit()">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // --- Actions ---
+
+    function toggleComplete(id) {
+        const task = tasks.find(t => t.id === id);
+        if (task) {
+            task.completed = !task.completed;
+            saveAndRender();
+        }
+    }
+
+    function deleteTask(id) {
+        if(confirm('Delete this task?')) {
+            tasks = tasks.filter(t => t.id !== id);
+            saveAndRender();
+        }
+    }
+
+    function enableEdit(id) {
+        editingId = id;
+        renderTasks();
+    }
+
+    function saveEdit(id) {
+        const textVal = document.getElementById(`edit-text-${id}`).value;
+        const urgVal = parseFloat(document.getElementById(`edit-urg-${id}`).value);
+        const timeVal = parseFloat(document.getElementById(`edit-time-${id}`).value);
+        const dateVal = document.getElementById(`edit-date-${id}`).value;
+
+        if (!validateInput(textVal, urgVal, timeVal)) return;
+
+        const task = tasks.find(t => t.id === id);
+        if (task) {
+            task.text = textVal;
+            task.urgency = urgVal;
+            task.time = timeVal;
+            task.deadline = dateVal === "" ? null : dateVal;
+            task.score = calculateScore(urgVal, timeVal);
+            
+            editingId = null;
+            saveAndRender();
+        }
+    }
+
+    function cancelEdit() {
+        editingId = null;
+        renderTasks();
+    }
+
+    // --- Helpers ---
+    function saveAndRender() {
+        localStorage.setItem('smartRankTasksV3', JSON.stringify(tasks));
+        renderTasks();
+    }
+
+    function loadTasks() {
+        const stored = localStorage.getItem('smartRankTasksV3');
+        if (stored) tasks = JSON.parse(stored);
+    }
+
+    function clearInputs() {
+        taskInput.value = '';
+        urgencyInput.value = '5';
+        timeInput.value = '30';
+        deadlineInput.value = '';
+        taskInput.focus();
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+</script>
+
+</body>
+</html>
+
+```
